@@ -1,0 +1,88 @@
+#!/usr/bin/python
+
+g_usage = """
+Typical Usage: 
+
+    (Assuming config file abbgrep.json is colocated with the script)
+    abbgrep serverGroup logFileSubString numDaysToGoBack searchString
+    
+    E.g.
+
+    abbgrep serverGroup1 server1 2 'search string'
+    abbgrep serverGroup1 any 2 'search string'
+"""
+
+import subprocess, string, json, os, Queue, threading, time, random, datetime, sys
+
+
+g_logging_on = False # set this to True for logging
+
+base_sshString = """
+ssh <remoteServer> << 'ENDSSH' 2>/dev/null
+printf "\e[1;4m%s: %s\e[0m\n" "Host" $(hostname);
+printf "\nsearching files...\n"
+find <logLocation> -name "<filesToSearch>" -type f -mtime -<daysToSearch>
+printf "\n"
+find <logLocation> -name "<filesToSearch>" -type f -mtime -<daysToSearch> | xargs zgrep '<searchString>'
+ENDSSH
+"""
+
+
+
+def worker_thread(sshString, printLock):
+    proc = subprocess.Popen(sshString, shell=True, stdout=subprocess.PIPE)
+    res = proc.communicate()
+    with printLock:
+        print res[0]
+    proc.wait()
+
+
+def construct_sshString(config_dict, userInput, remoteServer):
+    logLocation = config_dict[userInput[0]]["logLocation"]
+    if  userInput[1] == "any":
+        customizedSshString = string.replace(base_sshString, "<filesToSearch>", "*.*")
+    else:
+        customizedSshString = string.replace(base_sshString, "<filesToSearch>", "*"+userInput[1]+"*")
+    customizedSshString = string.replace(customizedSshString, "<logLocation>", logLocation)    
+    customizedSshString = string.replace(customizedSshString, "<daysToSearch>", userInput[2])
+    customizedSshString = string.replace(customizedSshString, "<remoteServer>", remoteServer)    
+    customizedSshString = string.replace(customizedSshString, "<searchString>", userInput[3])    
+    return customizedSshString
+    
+    
+def do_grep(config_dict, userInput, printLock):    
+    hostnamePrefix = config_dict[userInput[0]]["hostnamePrefix"]
+    lowerrange = config_dict[userInput[0]]["lowerrange"]        
+    upperrange = config_dict[userInput[0]]["upperrange"]        
+    for i in range(lowerrange,upperrange+1):    
+        serverName = hostnamePrefix + str(i)
+        sshString = construct_sshString(config_dict, userInput, serverName)
+        if g_logging_on:
+            print sshString
+        t = threading.Thread(target=worker_thread, args=(sshString, printLock) )
+        t.start()            
+
+
+def parse_user_input():
+    if len(sys.argv) == 1:
+        print g_usage
+        sys.exit(0)
+    return (sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+
+
+def configure():
+    script_dir = os.path.dirname(__file__)
+    abs_file_path = os.path.join(script_dir, "abbgrep.json")
+    with open(abs_file_path) as f:
+        return json.load(f)
+
+
+def main():
+    printLock = threading.RLock()
+    config_dict = configure()
+    userInput = parse_user_input()
+    do_grep(config_dict, userInput, printLock)
+
+    
+if __name__ == '__main__':
+    main()

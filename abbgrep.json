@@ -1,0 +1,30 @@
+{
+    "serverGroup1": 
+        {
+            "hostnamePrefix": "server1",
+            "lowerrange": 100, 
+            "upperrange": 103,
+            "logLocation": "/apps/server1/logs"
+        }, 
+    "serverGroup2":
+        {
+            "hostnamePrefix": "server2",
+            "lowerrange": 100, 
+            "upperrange": 103,
+            "logLocation": "/apps/server2/tomcat/logs"
+        },
+    "serverGroup3":
+        {
+            "hostnamePrefix": "server3",
+            "lowerrange": 100, 
+            "upperrange": 105,
+            "logLocation": "/apps/server3/tomcat/logs"
+        },
+    "serverGroup4":
+        {
+            "hostnamePrefix": "server4",
+            "lowerrange": 100, 
+            "upperrange": 100,
+            "logLocation": "/apps/server4/logs"
+        }
+}        
